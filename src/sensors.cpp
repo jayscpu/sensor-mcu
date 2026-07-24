@@ -29,6 +29,8 @@ static bool rtdPresent = false;
 
 void sensorsInit()
 {
+  Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+
   shtPresent = sht45.begin(&Wire);
   if (shtPresent)
   {
