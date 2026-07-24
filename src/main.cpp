@@ -11,28 +11,39 @@ static Adafruit_NeoPixel statusLed(1, PIN_STATUS_LED, NEO_RGB + NEO_KHZ800);
 // row that B2 will read to build the DATA line.
 static SensorReadings g_readings;
 
-// TEMP(B1): tick counters to prove cadence on the serial monitor. Removed in
-// B2, once the 1 Hz DATA line itself is the proof the slow tick fires.
-static unsigned long fastCount = 0;
-static unsigned long slowCount = 0;
 static void fastTick()
 {
   sensorsReadFast(g_readings);
-  fastCount++;
   // TODO(D2+): safetyEvaluate(g_readings) on the fast tick.
 }
 
-// Slow tick: logging sensors (SHT45, SGP40, ADS1115), every LOG_PERIOD_MS
-// (1 Hz: the SGP40 VOC algorithm expects that cadence).
-static void slowTick()
+// B2: Prints 1 CSV field, always preceded by a comma. Either prints the value, or
+// leaves the field empty when the sensor is unavailable. Overloaded for the
+// float channels and the SGP40's integer VOC index.
+static void csvField(bool ok, float value, uint8_t decimals)
+{
+  Serial.print(',');
+  if (ok)
+    Serial.print(value, decimals);
+}
+static void csvField(bool ok, int32_t value)
+{
+  Serial.print(',');
+  if (ok)
+    Serial.print(value);
+}
+
+static void slowTick() // Prints the CSV row, which pulls the fast tick's fields in from the shared snapshot
 {
   sensorsReadSlow(g_readings);
-  slowCount++;
-  // TEMP(B1): proves both ticks fire; fast should advance ~4x per slow tick
-  // (SAFETY_POLL_MS 250 vs LOG_PERIOD_MS 1000). Replaced by the DATA line in
-  // B2.
-  Serial.printf("[STATUS] sched fast=%lu slow=%lu\n", fastCount, slowCount);
-  // TODO(B2): emit the 1 Hz CSV DATA line from g_readings here.
+  Serial.print("DATA");
+  csvField(g_readings.tcOk, g_readings.tcTempC, 2);
+  csvField(g_readings.rtdOk, g_readings.rtdTempC, 2);
+  csvField(g_readings.shtOk, g_readings.ambientTempC, 2);
+  csvField(g_readings.shtOk, g_readings.ambientRH, 1);
+  csvField(g_readings.sgpOk, g_readings.vocIndex);
+  csvField(g_readings.mprlsOk, g_readings.pressureHPa, 1);
+  Serial.println();
 }
 
 void setup()
@@ -71,11 +82,7 @@ void loop()
     statusLed.show();
   }
 
-  // B1: non-blocking scheduler. Two independent ticks driven off millis(),
-  // same repeat-don't-gate idiom as the banner/heartbeat above. Subtraction is
-  // wrap-safe across the ~49.7-day millis() rollover; resetting lastX from the
-  // actual fire time means a late loop skips a beat instead of bursting to
-  // catch up (never desirable on the safety tick). No delay() anywhere.
+  // B1: Scheduler. Two independent ticks driven off millis()
   static unsigned long lastFastMs = 0;
   if (millis() - lastFastMs >= SAFETY_POLL_MS)
   { // fast: safety-critical reads
@@ -89,7 +96,6 @@ void loop()
     slowTick();
   }
 
-  // TODO(B2): 1 Hz CSV DATA line from SensorReadings (in slowTick)
   // TODO(D2+): safetyEvaluate() on the fast tick
   // TODO(D6): serial commands (STATUS / RESET / TEST)
 }

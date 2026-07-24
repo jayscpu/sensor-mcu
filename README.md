@@ -9,10 +9,10 @@ running [FluidNC]. This board does exactly two jobs:
    GPIO into FluidNC's `safety_door_pin` when a threshold is exceeded or a
    sensor dies.
 
-> **Status: sensors working, safety pending.** The board boots, blinks its
-> status LED, runs the non-blocking scheduler, brings up both buses, and reads
-> all six sensors. Still to do: the CSV log line, the safety cutoff logic, and
-> the serial commands. See [Roadmap](#roadmap).
+> **Status: logging works, safety pending.** The board boots, blinks its status
+> LED, runs the non-blocking scheduler, brings up both buses, reads all six
+> sensors, and streams the 1 Hz CSV log line. Still to do: the safety cutoff
+> logic and the serial commands. See [Roadmap](#roadmap).
 
 ## Hardware
 
@@ -86,10 +86,10 @@ native USB port from boot; without it, nothing printed is visible in a monitor.
 
 ## Serial output format
 
-The target format (the `DATA` line is not emitted yet — see [Roadmap](#roadmap))
-is two kinds of line, so a host can `grep` clean CSV out of the noise:
+Two kinds of line, so a host can `grep` clean CSV out of the noise:
 
-- `DATA,...`: one comma-separated row of readings at 1 Hz (fixed column order).
+- `DATA,...`: one comma-separated row of readings at 1 Hz. Fixed column order:
+  `tc_c, rtd_c, ambient_c, ambient_rh, voc_index, pressure_hpa`.
   An empty field means that sensor is unavailable.
 - `[INIT]` / `[SAFETY]` / `[STATUS]`: everything else (boot banner, safety
   events, diagnostics).
@@ -122,11 +122,11 @@ Do not present them as validated values.
 ## Roadmap
 
 Implemented so far: boot/flash workflow, status-LED heartbeat, the non-blocking
-scheduler, I2C/SPI bus bring-up, and all six sensor drivers (I2C + SPI, with
-per-read fault/NaN handling). Remaining work, roughly in dependency order:
+scheduler, I2C/SPI bus bring-up, all six sensor drivers (I2C + SPI, with
+per-read fault/NaN handling), and the 1 Hz CSV `DATA` line. Remaining work,
+roughly in dependency order:
 
-1. **Logging output**: the 1 Hz CSV `DATA` line, boot I2C scan, event-line
-   prefixes, CI.
+1. **Logging polish**: boot I2C scan, CI.
 2. **Safety subsystem**: threshold rules, WARN (non-latching) / SHUTDOWN
    (latching), dead-sensor detection, LED patterns, `STATUS`/`RESET`/`TEST`
    serial commands, bench verification.

@@ -4,7 +4,7 @@
 // Pin map: ESP32-S3 DevKitC-1 (the only board this project targets).
 // =============================================================
 
-// I2C bus: SHT45, SGP40, MPRLS, ADS1115
+// I2C bus: SHT45, SGP40, MPRLS
 #define PIN_I2C_SDA 8
 #define PIN_I2C_SCL 9
 
@@ -45,9 +45,11 @@
 #define RTD_RREF     430.0f
 #define RTD_RNOMINAL 100.0f
 
-// ADS1115 spare analog channels. Full-range +/-6.144V (GAIN_TWOTHIRDS) is the
-// safe default: it won't clip a 0-3.3V or 0-5V source. Narrow it (e.g.
-// GAIN_ONE = +/-4.096V) for more resolution once the signal range is known.
+// ADS1115 spare analog channels. Driver is not currently built (no analog
+// inputs wired yet); this setting is kept for when it's re-added. Full-range
+// +/-6.144V (GAIN_TWOTHIRDS) is the safe default: it won't clip a 0-3.3V or
+// 0-5V source. Narrow it (e.g. GAIN_ONE = +/-4.096V) for more resolution once
+// the signal range is known.
 #define ADS_GAIN GAIN_TWOTHIRDS
 
 // =============================================================
@@ -55,7 +57,7 @@
 // =============================================================
 
 #define SAFETY_POLL_MS 250   // fast loop: thermocouple, RTD, pressure + trip logic
-#define LOG_PERIOD_MS  1000  // slow loop: SHT45, SGP40, ADS1115 + CSV log line
+#define LOG_PERIOD_MS  1000  // slow loop: SHT45, SGP40 + CSV log line
                              // (keep at 1000 ms: the SGP40 VOC algorithm expects 1 Hz)
 
 // =============================================================

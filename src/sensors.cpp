@@ -1,4 +1,4 @@
-//   I2C: SHT45, SGP40, MPRLS, ADS1115
+//   I2C: SHT45, SGP40, MPRLS
 //   SPI: MAX31856 thermocouple - substrate temp, logging only
 //        MAX31865 RTD          - metal temp, SAFETY-CRITICAL
 
@@ -10,14 +10,12 @@
 #include <Adafruit_SHT4x.h>
 #include <Adafruit_SGP40.h>
 #include <Adafruit_MPRLS.h>
-#include <Adafruit_ADS1X15.h>
 #include <Adafruit_MAX31856.h>
 #include <Adafruit_MAX31865.h>
 
 static Adafruit_SHT4x sht45;
 static Adafruit_SGP40 sgp40;
 static Adafruit_MPRLS mprls = Adafruit_MPRLS(-1, -1);
-static Adafruit_ADS1115 ads1115;
 
 // Both temp chips share the hardware SPI bus; each has its own CS pin (config.h).
 static Adafruit_MAX31856 maxTC(PIN_MAX31856_CS);
@@ -26,7 +24,6 @@ static Adafruit_MAX31865 maxRTD(PIN_MAX31865_CS);
 static bool shtPresent = false;
 static bool sgpPresent = false;
 static bool mprlsPresent = false;
-static bool adsPresent = false;
 static bool tcPresent = false;
 static bool rtdPresent = false;
 
@@ -49,17 +46,6 @@ void sensorsInit()
 
   mprlsPresent = mprls.begin(MPRLS_DEFAULT_ADDR, &Wire);
   Serial.println(mprlsPresent ? "[INIT] MPRLS detected" : "[INIT] MPRLS NOT found");
-
-  adsPresent = ads1115.begin(ADS1X15_ADDRESS, &Wire);
-  if (adsPresent)
-  {
-    ads1115.setGain(ADS_GAIN);
-    Serial.println("[INIT] ADS1115 detected");
-  }
-  else
-  {
-    Serial.println("[INIT] ADS1115 NOT found");
-  }
 
   // SPI has no bus-level ack, so begin() returning true only
   // means the driver initialised; a truly absent/dead sensor is caught later
@@ -182,16 +168,5 @@ void sensorsReadSlow(SensorReadings &r)
       r.vocIndex = sgp40.measureVocIndex();
     }
     r.sgpOk = true;
-  }
-
-  // ADS1115: read the 4 inputs (A0..A3) as volts. A single-ended read can't
-  // report failure, so adsOk just reflects presence (like the SGP40).
-  if (adsPresent)
-  {
-    for (uint8_t ch = 0; ch < 4; ch++)
-    {
-      r.adsVolts[ch] = ads1115.computeVolts(ads1115.readADC_SingleEnded(ch));
-    }
-    r.adsOk = true;
   }
 }

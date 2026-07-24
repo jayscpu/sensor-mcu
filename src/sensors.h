@@ -24,12 +24,8 @@ struct SensorReadings {
   // MPRLS ported pressure
   float   pressureHPa = NAN;
   bool    mprlsOk = false;
-
-  // ADS1115 single-ended channels A0..A3, volts
-  float   adsVolts[4] = {NAN, NAN, NAN, NAN};
-  bool    adsOk = false;
 };
 
 void sensorsInit();                       // probe + configure every sensor (I2C + SPI)
 void sensorsReadFast(SensorReadings &r);  // fast-tick reads: RTD (safety), substrate TC, pressure
-void sensorsReadSlow(SensorReadings &r);  // logging reads: SHT45, SGP40, ADS1115
+void sensorsReadSlow(SensorReadings &r);  // logging reads: SHT45, SGP40
