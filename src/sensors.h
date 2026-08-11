@@ -27,6 +27,5 @@ struct SensorReadings
   bool mprlsOk = false;
 };
 
-void sensorsInit();                      // probe + configure every sensor (I2C + SPI)
-void sensorsReadFast(SensorReadings &r); // fast-tick reads: RTD (safety), substrate TC, pressure
-void sensorsReadSlow(SensorReadings &r); // logging reads: SHT45, SGP40
+void sensorsInit();                  // probe + configure every sensor (I2C + SPI)
+void sensorsRead(SensorReadings &r); // read every sensor (single 1 Hz tick)

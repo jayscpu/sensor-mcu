@@ -22,18 +22,17 @@
 #define PIN_SHUTDOWN 4
 #define PIN_WARN     5
 
-// Status "LED" is actually a single onboard WS2812 addressable RGB pixel,
-// not a plain GPIO LED; driven with Adafruit_NeoPixel, not digitalWrite.
-// Confirmed on hardware 2026-07-20 (this Waveshare board differs from the
-// official Espressif DevKitC-1 reference, which uses GPIO48 instead).
-#define PIN_STATUS_LED 38
-
 #define CUTOFF_OK_LEVEL    LOW
 #define CUTOFF_FAULT_LEVEL HIGH
 
 // =============================================================
 // Sensor configuration
 // =============================================================
+
+// 1 = ignore real sensors and generate plausible wandering fake readings each
+// tick, so the UDP/CrowPanel pipeline can be tested with no sensors wired.
+// The CSV format is identical to real data. SET BACK TO 0 for real runs.
+#define SIMULATE_SENSORS 1
 
 // MAX31856 thermocouple type (sacrificial substrate temperature, for cooldown tuning)
 #define TC_TYPE MAX31856_TCTYPE_K
@@ -53,12 +52,24 @@
 #define ADS_GAIN GAIN_TWOTHIRDS
 
 // =============================================================
+// WiFi / UDP telemetry
+// =============================================================
+
+// Closed rig network: the old router is offline, so credentials here are
+// low-sensitivity, but still fill in your own. Each tick, one JSON packet
+// (FluidTouch sensor-link contract, see README) goes to the subnet broadcast
+// address; the CrowPanel screen listens on UDP_PORT. No fixed IPs.
+#define WIFI_SSID "sprayer"
+#define WIFI_PASS "sprayer123"
+// Must match SENSOR_UDP_PORT in the FluidTouch repo's include/config.h.
+#define UDP_PORT  5005
+
+// =============================================================
 // Timing
 // =============================================================
 
-#define SAFETY_POLL_MS 250   // fast loop: thermocouple, RTD, pressure + trip logic
-#define LOG_PERIOD_MS  1000  // slow loop: SHT45, SGP40 + CSV log line
-                             // (keep at 1000 ms: the SGP40 VOC algorithm expects 1 Hz)
+#define LOG_PERIOD_MS 1000 // sensor tick: all reads + CSV log line
+                           // (keep at 1000 ms: the SGP40 VOC algorithm expects 1 Hz)
 
 // =============================================================
 // Safety thresholds: TUNE THESE for your process before trusting them.
@@ -87,5 +98,5 @@
 
 // Consecutive failed reads of a safety-critical sensor (TC or RTD)
 // before we treat the sensor itself as failed and trip a shutdown.
-// 8 reads at 250 ms = 2 s of no valid data.
+// 8 reads at the 1 s tick = 8 s of no valid data.
 #define SENSOR_FAULT_TRIP_COUNT 8
