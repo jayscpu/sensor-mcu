@@ -149,6 +149,4 @@ void loop()
     lastTickMs = millis();
     tick();
   }
-
-  // TODO(D6): serial commands (STATUS / RESET / TEST)
 }

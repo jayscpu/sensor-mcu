@@ -1,6 +1,6 @@
 //   I2C: SHT45, SGP40, MPRLS
-//   SPI: MAX31856 thermocouple - substrate temp, logging only
-//        MAX31865 RTD          - metal temp, SAFETY-CRITICAL
+//   SPI: MAX31856 thermocouple - substrate temp
+//        MAX31865 RTD          - metal temp
 
 #include "sensors.h"
 #include "config.h"
@@ -186,7 +186,7 @@ void sensorsRead(SensorReadings &r)
     }
   }
 
-  // RTD: safety-critical metal temp. One read ~75 ms, fits the 1 s tick. Its
+  // RTD: metal temp. One read ~75 ms, fits the 1 s tick. Its
   // fault flag is sticky (so a fault between reads can't be missed); clear it
   // after reading to re-arm for next tick.
   if (rtdPresent)

@@ -15,16 +15,6 @@
 #define PIN_MAX31856_CS 10
 #define PIN_MAX31865_CS 14
 
-// Outputs to the FluidNC controller (common GND required).
-// Fail-safe polarity: LOW = OK, HIGH/floating = fault. Configure the
-// FluidNC input as active-high with a pull-up (see README.md) so a broken
-// wire or a dead sensor MCU also reads as a fault.
-#define PIN_SHUTDOWN 4
-#define PIN_WARN     5
-
-#define CUTOFF_OK_LEVEL    LOW
-#define CUTOFF_FAULT_LEVEL HIGH
-
 // =============================================================
 // Sensor configuration
 // =============================================================
@@ -71,32 +61,3 @@
 #define LOG_PERIOD_MS 1000 // sensor tick: all reads + CSV log line
                            // (keep at 1000 ms: the SGP40 VOC algorithm expects 1 Hz)
 
-// =============================================================
-// Safety thresholds: TUNE THESE for your process before trusting them.
-// WARN asserts the warning pin (non-latching); SHUTDOWN asserts the
-// cutoff pin and latches until a RESET serial command or power cycle.
-// =============================================================
-
-// Thermocouple = sacrificial substrate temp (cooldown tuning), deg C.
-// NOT a safety cutoff despite the _SHUTDOWN_ name; a logging/warning
-// reference only. Only the RTD (and pressure, if enabled) drive the pin.
-#define TC_WARN_C     450.0f
-#define TC_SHUTDOWN_C 500.0f
-
-// PT100 RTD temperature, deg C
-#define RTD_WARN_C     450.0f
-#define RTD_SHUTDOWN_C 500.0f
-
-// MPRLS line pressure window, hPa. Outside the window raises a warning.
-// Set ENABLE_PRESSURE_TRIP to 1 to make it a latching shutdown instead.
-#define PRESS_MIN_HPA 800.0f
-#define PRESS_MAX_HPA 1600.0f
-#define ENABLE_PRESSURE_TRIP 0
-
-// SGP40 VOC index (1..500, ~100 is typical clean air). Warning only.
-#define VOC_WARN_INDEX 300
-
-// Consecutive failed reads of a safety-critical sensor (TC or RTD)
-// before we treat the sensor itself as failed and trip a shutdown.
-// 8 reads at the 1 s tick = 8 s of no valid data.
-#define SENSOR_FAULT_TRIP_COUNT 8

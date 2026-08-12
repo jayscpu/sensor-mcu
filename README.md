@@ -1,21 +1,15 @@
-# sensor-mcu: sensor logger + safety watchdog for a spray pyrolysis rig
+# sensor-mcu: sensor logger for a spray pyrolysis rig
 
 Firmware for a standalone **ESP32-S3** that sits next to a spray pyrolysis
 slider. The rig's motion and spray valve are driven by a *separate* ESP32-S3
-running [FluidNC]. This board does exactly two jobs:
+running [FluidNC]. This board does one job: read the process sensors and
+stream them, as a CSV line over USB serial and as JSON-over-UDP broadcast to
+the CrowPanel pendant running FluidTouch, which displays them live and records
+them alongside the machine's position and state.
 
-1. **Logging** (implemented): stream every process sensor as CSV over USB serial.
-2. **Safety cutoff** (planned): watch the safety-critical sensors and drive a
-   fail-safe GPIO into FluidNC's `safety_door_pin` when a threshold is exceeded
-   or a sensor dies.
-
-> **Status: logging works, safety not implemented.** The board boots, runs the
-> non-blocking scheduler, brings up both buses, reads all five sensors, and
-> streams readings at 1 Hz as a CSV line over USB serial and as JSON-over-UDP
-> broadcast to the FluidTouch screen on the rig's offline WiFi network. There
-> is no safety code yet:
-> the SHUTDOWN/WARN pins are never driven, and the thresholds in `config.h` are
-> unused placeholders. See [Roadmap](#roadmap).
+> **Status: working.** The board boots, runs the non-blocking scheduler,
+> brings up both buses, reads all five sensors, and ships readings at 1 Hz
+> over both outputs. Real sensors are not yet wired; `SIMULATE_SENSORS` is on.
 
 ## Hardware
 
@@ -24,11 +18,11 @@ breakouts.
 
 | Sensor | Bus | Role |
 |---|---|---|
-| MAX31856 + type-K thermocouple | SPI | Sacrificial substrate temp between passes, for cooldown tuning (logging) |
-| MAX31865 + PT100 RTD | SPI | Second temperature point, **safety-critical** |
-| SHT45 | I2C | Ambient temp/humidity (logging + SGP40 compensation) |
-| SGP40 | I2C | Solvent vapor / VOC index (warning) |
-| MPRLS | I2C | Spray-line pressure (warning) |
+| MAX31856 + type-K thermocouple | SPI | Sacrificial substrate temp between passes, for cooldown tuning |
+| MAX31865 + PT100 RTD | SPI | Metal temp |
+| SHT45 | I2C | Ambient temp/humidity (also feeds SGP40 compensation) |
+| SGP40 | I2C | Solvent vapor / VOC index |
+| MPRLS | I2C | Spray-line pressure |
 
 An ADS1115 (4 spare analog channels) may be added later; its driver is not
 built, but its gain setting and library dependency are kept around for when
@@ -45,30 +39,9 @@ not here.
 | SPI SCK / MISO / MOSI | GPIO 12 / 13 / 11 |
 | MAX31856 CS | GPIO 10 |
 | MAX31865 CS | GPIO 14 |
-| SHUTDOWN → FluidNC | GPIO 4 |
-| WARN | GPIO 5 |
 
-## FluidNC cutoff contract (frozen)
-
-**Not implemented in firmware yet.** The contract below is the frozen design
-for the planned safety subsystem. Until it's implemented the firmware never
-drives `PIN_SHUTDOWN`, and with the fail-safe polarity a floating pin reads as
-a fault, so wiring it to FluidNC today would just hold the machine in a
-permanent fault state.
-
-`PIN_SHUTDOWN` (GPIO 4) + common ground → a spare FluidNC input:
-
-```yaml
-control:
-  safety_door_pin: gpio.N:high:pu   # pick a free FluidNC gpio; :high:pu is required
-```
-
-Polarity is **fail-safe: LOW = OK, HIGH/floating = fault.** A cut wire or a dead
-sensor MCU therefore reads as a fault and stops the machine (feed hold + spray
-valve off). Both boards are 3.3 V, so direct wire, no level shifting.
-
-Changing this contract means updating `config.h`, this README, and the physical
-FluidNC config together.
+There is no wired connection to any other board: the only outputs are USB
+serial and WiFi.
 
 ## Requirements
 
@@ -101,7 +74,7 @@ Two kinds of line, so a host can `grep` clean CSV out of the noise:
 - Bracket-prefixed lines: everything else. Today that's `[INIT]` (boot banner +
   sensor probe results; the boot banner repeats at 1 Hz by design, so a
   late-attaching monitor still sees it) and `[WIFI]` (connect/disconnect
-  events). The safety subsystem will add `[SAFETY]` / `[STATUS]`.
+  events).
 
 ```sh
 pio device monitor | grep '^DATA' > run.csv    # capture just the data
@@ -155,22 +128,15 @@ superseded a second later, so that's acceptable by design.
 
 | File | Responsibility |
 |---|---|
-| [`src/main.cpp`](src/main.cpp) | `setup()`/`loop()`, non-blocking millis() scheduler, the CSV line |
+| [`src/main.cpp`](src/main.cpp) | `setup()`/`loop()`, non-blocking millis() scheduler, CSV + UDP output |
 | [`src/sensors.{h,cpp}`](src/sensors.h) | Bus init, per-sensor drivers, the `SensorReadings` schema |
-| [`include/config.h`](include/config.h) | Pin map, timing, safety thresholds (placeholders for the planned safety subsystem) |
+| [`include/config.h`](include/config.h) | Pin map, WiFi credentials, timing |
 
 The scheduler runs a single tick off `millis()` (no `delay()`):
 
-- **tick** (`LOG_PERIOD_MS`, 1000 ms): read every sensor, then print the CSV
-  line. Keep this at 1 Hz: the SGP40 VOC algorithm expects that cadence. If
-  the safety subsystem needs faster reaction than 1 s, the safety-critical
-  reads (RTD, pressure) will get their own faster tick again.
-
-## Thresholds are not commissioned
-
-Every limit in the "Safety thresholds" section of `config.h` is a **placeholder**.
-They must be tuned against your real process before the cutoff can be trusted.
-Do not present them as validated values.
+- **tick** (`LOG_PERIOD_MS`, 1000 ms): read every sensor, then ship the CSV
+  line and the UDP packet. Keep this at 1 Hz: the SGP40 VOC algorithm expects
+  that cadence.
 
 ## Roadmap
 
@@ -181,15 +147,8 @@ the JSON-over-UDP broadcast to the FluidTouch screen.
 Remaining work, roughly in dependency order:
 
 1. **Logging polish**: boot I2C scan, CI.
-2. **Safety subsystem**: threshold rules, WARN (non-latching) / SHUTDOWN
-   (latching), dead-sensor detection, serial commands, bench
-   verification. The planned serial commands are operator tools typed into the
-   serial monitor: `STATUS` prints a one-off snapshot of readings and safety
-   state, `RESET` clears a latched shutdown after a trip (the alternative is a
-   power cycle), and `TEST` forces a fake trip to verify the FluidNC wiring
-   actually stops the machine.
-3. **Rig integration & commissioning**: wire to FluidNC, integration test,
-   tune thresholds against the real process.
+2. **Real-sensor bring-up**: wire the five sensors, set `SIMULATE_SENSORS`
+   to 0, and verify every channel end to end on the FluidTouch screen.
 
 ### Library gotchas to remember
 
