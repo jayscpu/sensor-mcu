@@ -1,31 +1,25 @@
 #pragma once
 #include <Arduino.h>
 
-// Provisional data schema shared by the sensors, safety, and logging
-// subsystems. Extend/change it as sensors get implemented.
+// ok=false means the value is invalid (absent sensor, fault, or NaN read).
 struct SensorReadings
 {
-  // MAX31856 thermocouple (substrate)
-  float tcTempC = NAN;
+  float tcTempC = NAN; // MAX31856 thermocouple (substrate)
   bool tcOk = false;
 
-  // MAX31865 + PT100 RTD
-  float rtdTempC = NAN;
+  float rtdTempC = NAN; // MAX31865 + PT100 RTD (metal)
   bool rtdOk = false;
 
-  // SHT45 ambient temperature / humidity
-  float ambientTempC = NAN;
+  float ambientTempC = NAN; // SHT45
   float ambientRH = NAN;
   bool shtOk = false;
 
-  // SGP40 VOC index
-  int32_t vocIndex = -1;
+  int32_t vocIndex = -1; // SGP40
   bool sgpOk = false;
 
-  // MPRLS ported pressure
-  float pressureHPa = NAN;
+  float pressureHPa = NAN; // MPRLS
   bool mprlsOk = false;
 };
 
-void sensorsInit();                  // probe + configure every sensor (I2C + SPI)
-void sensorsRead(SensorReadings &r); // read every sensor (single 1 Hz tick)
+void sensorsInit();
+void sensorsRead(SensorReadings &r);

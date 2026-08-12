@@ -6,14 +6,10 @@
 
 static WiFiUDP udp;
 
-// B2: The CSV row is built into this buffer (instead of printed piecewise)
-// so the same line can go to both Serial and the UDP broadcast packet.
 static char csvLine[128];
 static size_t csvLen;
 
-// Appends 1 CSV field, always preceded by a comma. Either appends the value, or
-// leaves the field empty when the sensor is unavailable. Overloaded for the
-// float channels and the SGP40's integer VOC index.
+// Empty CSV field = that sensor is unavailable this tick.
 static void csvField(bool ok, float value, uint8_t decimals)
 {
   csvLen += snprintf(csvLine + csvLen, sizeof(csvLine) - csvLen,
@@ -25,11 +21,8 @@ static void csvField(bool ok, int32_t value)
                      ok ? ",%ld" : ",", (long)value);
 }
 
-// The UDP payload follows the FluidTouch sensor-link contract:
-//   {"seq":N,"ms":M,"d":{"tc_c":351.42,...}}
-// seq is how the screen tells a lost packet from a quiet sensor; ms is our
-// millis(). A channel whose sensor is unavailable this tick is omitted from
-// "d" (the screen keeps its column slot and leaves the row blank).
+// FluidTouch sensor-link contract: {"seq":N,"ms":M,"d":{...}}. Channels whose
+// sensor is unavailable are omitted from "d".
 static char jsonBuf[256];
 static size_t jsonLen;
 static bool jsonFirst;
@@ -51,7 +44,7 @@ static void jsonChannel(bool ok, const char *name, int32_t value)
   jsonFirst = false;
 }
 
-static void tick() // Reads every sensor, then ships the row (serial CSV + UDP JSON)
+static void tick()
 {
   SensorReadings readings;
   sensorsRead(readings);
@@ -63,18 +56,13 @@ static void tick() // Reads every sensor, then ships the row (serial CSV + UDP J
   csvField(readings.shtOk, readings.ambientRH, 1);
   csvField(readings.sgpOk, readings.vocIndex);
   csvField(readings.mprlsOk, readings.pressureHPa, 1);
-
   Serial.println(csvLine);
 
-  // seq counts every sample taken, not every packet sent, so ticks that
-  // couldn't be sent (WiFi down) show up in the screen's lost-packet count
-  // instead of looking like the sensor board went quiet.
+  // seq counts samples, not sends, so a WiFi outage registers as lost
+  // packets on the screen instead of looking like a quiet sensor.
   static uint32_t seq = 0;
   seq++;
 
-  // One packet per tick to the subnet broadcast address; the screen just
-  // listens on UDP_PORT. Broadcast frames aren't retried at the WiFi layer,
-  // so the odd packet drops; the screen's seq accounting surfaces that.
   if (WiFi.status() == WL_CONNECTED)
   {
     jsonLen = snprintf(jsonBuf, sizeof(jsonBuf), "{\"seq\":%lu,\"ms\":%lu,\"d\":{",
@@ -97,10 +85,9 @@ static void tick() // Reads every sensor, then ships the row (serial CSV + UDP J
 void setup()
 {
   Serial.begin(115200);
-  sensorsInit(); // I2C bus up + probe SHT45 / SGP40 / MPRLS (prints [INIT] lines)
+  sensorsInit();
 
-  // Join the (offline) rig router. Non-blocking: the tick loop starts
-  // immediately and simply skips the UDP send until the connection is up.
+  // Non-blocking join: ticks run regardless, UDP sends skip until connected.
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -108,11 +95,8 @@ void setup()
 
 void loop()
 {
-  // Repeats instead of printing once: on native USB-CDC boards like the
-  // S3, every reset re-enumerates the port, and a monitor client takes
-  // longer to reconnect than a one-shot boot print takes to fire. Repeating
-  // means whenever the client finishes reattaching, the next line is at
-  // most ~1s away instead of already gone.
+  // Repeats because the S3's native USB re-enumerates on every reset; a
+  // one-shot boot print would be gone before a monitor can reattach.
   static unsigned long lastMs = 0;
   if (millis() - lastMs >= 1000)
   {
@@ -120,8 +104,6 @@ void loop()
     Serial.println("[INIT] sensormcu boot (env=esp32s3)");
   }
 
-  // Announce WiFi transitions once per change (the ESP32 core auto-reconnects
-  // after drops, so this can fire more than once per boot).
   static bool wifiWasUp = false;
   bool wifiUp = (WiFi.status() == WL_CONNECTED);
   if (wifiUp != wifiWasUp)
@@ -142,7 +124,6 @@ void loop()
     }
   }
 
-  // B1: Scheduler. Single tick driven off millis(); reads every sensor + CSV
   static unsigned long lastTickMs = 0;
   if (millis() - lastTickMs >= LOG_PERIOD_MS)
   {
