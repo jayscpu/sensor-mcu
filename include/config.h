@@ -32,5 +32,9 @@
 // which the screen listens on (our source port doesn't matter).
 #define UDP_PORT  5005
 
+// Bit order of the "status" health bitmask channel; part of the contract with
+// the display (mirrored in the touchscreen's sensor_link.h):
+// bit0 SHT45, bit1 SGP40, bit2 MPRLS, bit3 MAX31856, bit4 MAX31865. 31 = all OK.
+
 // Keep at 1000 ms: the SGP40 VOC algorithm expects 1 Hz.
 #define LOG_PERIOD_MS 1000

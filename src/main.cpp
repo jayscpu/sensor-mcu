@@ -22,10 +22,32 @@ static void csvField(bool ok, int32_t value)
 }
 
 // FluidTouch sensor-link contract: {"seq":N,"ms":M,"d":{...}}. Channels whose
-// sensor is unavailable are omitted from "d".
+// sensor is unhealthy are omitted from "d"; the "status" channel (bitmask,
+// see config.h) says which sensors are healthy and is sent in every packet.
 static char jsonBuf[256];
 static size_t jsonLen;
 static bool jsonFirst;
+
+// Asymmetric debounce: one bad read marks the sensor unhealthy immediately,
+// but it must read good for 3 consecutive ticks to count as healthy again.
+struct Health
+{
+  bool healthy = false;
+  uint8_t goodStreak = 0;
+  bool update(bool ok)
+  {
+    if (!ok)
+    {
+      healthy = false;
+      goodStreak = 0;
+    }
+    else if (!healthy && ++goodStreak >= 3)
+    {
+      healthy = true;
+    }
+    return healthy;
+  }
+};
 
 static void jsonChannel(bool ok, const char *name, float value, uint8_t decimals)
 {
@@ -63,17 +85,27 @@ static void tick()
   static uint32_t seq = 0;
   seq++;
 
+  static Health shtHealth, sgpHealth, mprlsHealth, tcHealth, rtdHealth;
+  bool shtUp = shtHealth.update(readings.shtOk);
+  bool sgpUp = sgpHealth.update(readings.sgpOk);
+  bool mprlsUp = mprlsHealth.update(readings.mprlsOk);
+  bool tcUp = tcHealth.update(readings.tcOk);
+  bool rtdUp = rtdHealth.update(readings.rtdOk);
+  int32_t status = (shtUp ? 1 : 0) | (sgpUp ? 2 : 0) | (mprlsUp ? 4 : 0) |
+                   (tcUp ? 8 : 0) | (rtdUp ? 16 : 0);
+
   if (WiFi.status() == WL_CONNECTED)
   {
     jsonLen = snprintf(jsonBuf, sizeof(jsonBuf), "{\"seq\":%lu,\"ms\":%lu,\"d\":{",
                        (unsigned long)seq, (unsigned long)millis());
     jsonFirst = true;
-    jsonChannel(readings.tcOk, "tc_c", readings.tcTempC, 2);
-    jsonChannel(readings.rtdOk, "rtd_c", readings.rtdTempC, 2);
-    jsonChannel(readings.shtOk, "ambient_c", readings.ambientTempC, 2);
-    jsonChannel(readings.shtOk, "ambient_rh", readings.ambientRH, 1);
-    jsonChannel(readings.sgpOk, "voc_index", readings.vocIndex);
-    jsonChannel(readings.mprlsOk, "pressure_hpa", readings.pressureHPa, 1);
+    jsonChannel(tcUp, "tc_c", readings.tcTempC, 2);
+    jsonChannel(rtdUp, "rtd_c", readings.rtdTempC, 2);
+    jsonChannel(shtUp, "ambient_c", readings.ambientTempC, 2);
+    jsonChannel(shtUp, "ambient_rh", readings.ambientRH, 1);
+    jsonChannel(sgpUp, "voc_index", readings.vocIndex);
+    jsonChannel(mprlsUp, "pressure_hpa", readings.pressureHPa, 1);
+    jsonChannel(true, "status", status);
     jsonLen += snprintf(jsonBuf + jsonLen, sizeof(jsonBuf) - jsonLen, "}}");
 
     udp.beginPacket(WiFi.broadcastIP(), UDP_PORT);

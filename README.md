@@ -52,14 +52,19 @@ must match `SENSOR_UDP_PORT` in `touchscreen/include/config.h`). Set `WIFI_SSID`
 sampling never waits on the network.
 
 ```json
-{"seq":1234,"ms":45678,"d":{"tc_c":351.42,"rtd_c":382.10,"ambient_c":25.03,"ambient_rh":40.5,"voc_index":112,"pressure_hpa":1013.2}}
+{"seq":1234,"ms":45678,"d":{"tc_c":351.42,"rtd_c":382.10,"ambient_c":25.03,"ambient_rh":40.5,"voc_index":112,"pressure_hpa":1013.2,"status":31}}
 ```
 
 - `seq`: +1 per sample from boot, even when WiFi is down, so outages show in
   the screen's lost-packet count. A backwards jump = this board rebooted.
 - `ms`: this board's `millis()`.
-- `d`: one key per channel; unavailable channels are **omitted**. The screen
-  discovers names at runtime (max 8 channels, 15-char names; we use 6).
+- `d`: one key per channel; unhealthy channels are **omitted**. The screen
+  discovers names at runtime (max 8 channels, 15-char names; we use 7).
+- `status`: health bitmask, sent in every packet: bit0 SHT45, bit1 SGP40,
+  bit2 MPRLS, bit3 MAX31856, bit4 MAX31865; 31 = all five healthy. Health is
+  debounced asymmetrically: one bad read drops a bit immediately, and it
+  returns only after 3 consecutive good reads (so channels also take 3 ticks
+  to appear after boot or recovery).
 
 **Testing:** with `SIMULATE_SENSORS 1` (in `config.h`) the packets carry fake
 drifting values in the exact same format, with occasional SHT45 dropouts to
