@@ -1,9 +1,10 @@
 # sensor-mcu: sensor logger for a spray pyrolysis rig
 
 Standalone sensors **ESP32-S3** . Once a second it reads the process
-sensors and streams them two ways: a CSV line over USB serial, and a JSON UDP
-broadcast to the CrowPanel touchscreen running FluidTouch, which displays them
-live and records them alongside the machine's position and state.
+sensors and broadcasts them as one JSON UDP packet to the CrowPanel
+touchscreen running FluidTouch, which displays them live and records them
+alongside the machine's position and state. There is no serial output; the
+touchscreen is the only log.
 
 **Status: working.** Real sensors are not wired yet; `SIMULATE_SENSORS` is on,
 so the board broadcasts fake wandering readings for end-to-end testing.
@@ -30,18 +31,6 @@ Dependencies fetch automatically on first build.
 ```sh
 pio run                    # build
 pio run -t upload          # flash
-pio device monitor         # serial at 115200 baud
-```
-
-## Serial output
-
-- `DATA,tc_c,rtd_c,ambient_c,ambient_rh,voc_index,pressure_hpa` at 1 Hz.
-  An empty field means that sensor is unavailable.
-- `[INIT]` / `[WIFI]` lines: sensor probe results at boot and WiFi
-  connect/disconnect events.
-
-```sh
-pio device monitor | grep '^DATA' > run.csv
 ```
 
 ## UDP telemetry (FluidTouch)
@@ -68,8 +57,8 @@ sampling never waits on the network.
 
 **Testing:** with `SIMULATE_SENSORS 1` (in `config.h`) the packets carry fake
 drifting values in the exact same format, with occasional SHT45 dropouts to
-exercise the missing-channel path; boot output warns loudly that data is fake.
-The screen only listens after an operator selects a FluidNC machine.
+exercise the missing-channel path. The screen only listens after an operator
+selects a FluidNC machine.
 
 ## Notes
 

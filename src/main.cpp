@@ -6,21 +6,6 @@
 
 static WiFiUDP udp;
 
-static char csvLine[128];
-static size_t csvLen;
-
-// Empty CSV field = that sensor is unavailable this tick.
-static void csvField(bool ok, float value, uint8_t decimals)
-{
-  csvLen += snprintf(csvLine + csvLen, sizeof(csvLine) - csvLen,
-                     ok ? ",%.*f" : ",", decimals, value);
-}
-static void csvField(bool ok, int32_t value)
-{
-  csvLen += snprintf(csvLine + csvLen, sizeof(csvLine) - csvLen,
-                     ok ? ",%ld" : ",", (long)value);
-}
-
 // FluidTouch sensor-link contract: {"seq":N,"ms":M,"d":{...}}. Channels whose
 // sensor is unhealthy are omitted from "d"; the "status" channel (bitmask,
 // see config.h) says which sensors are healthy and is sent in every packet.
@@ -71,15 +56,6 @@ static void tick()
   SensorReadings readings;
   sensorsRead(readings);
 
-  csvLen = snprintf(csvLine, sizeof(csvLine), "DATA");
-  csvField(readings.tcOk, readings.tcTempC, 2);
-  csvField(readings.rtdOk, readings.rtdTempC, 2);
-  csvField(readings.shtOk, readings.ambientTempC, 2);
-  csvField(readings.shtOk, readings.ambientRH, 1);
-  csvField(readings.sgpOk, readings.vocIndex);
-  csvField(readings.mprlsOk, readings.pressureHPa, 1);
-  Serial.println(csvLine);
-
   // seq counts samples, not sends, so a WiFi outage registers as lost
   // packets on the screen instead of looking like a quiet sensor.
   static uint32_t seq = 0;
@@ -116,7 +92,6 @@ static void tick()
 
 void setup()
 {
-  Serial.begin(115200);
   sensorsInit();
 
   // Non-blocking join: ticks run regardless, UDP sends skip until connected.
@@ -127,26 +102,6 @@ void setup()
 
 void loop()
 {
-  static bool wifiWasUp = false;
-  bool wifiUp = (WiFi.status() == WL_CONNECTED);
-  if (wifiUp != wifiWasUp)
-  {
-    wifiWasUp = wifiUp;
-    if (wifiUp)
-    {
-      Serial.print("[WIFI] connected, ip=");
-      Serial.print(WiFi.localIP());
-      Serial.print(", broadcasting sensor JSON to ");
-      Serial.print(WiFi.broadcastIP());
-      Serial.print(":");
-      Serial.println(UDP_PORT);
-    }
-    else
-    {
-      Serial.println("[WIFI] disconnected, retrying");
-    }
-  }
-
   static unsigned long lastTickMs = 0;
   if (millis() - lastTickMs >= LOG_PERIOD_MS)
   {

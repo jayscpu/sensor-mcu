@@ -24,7 +24,6 @@ static bool rtdPresent = false;
 void sensorsInit()
 {
 #if SIMULATE_SENSORS
-  Serial.println("[INIT] SIMULATE_SENSORS=1: readings below are FAKE");
   randomSeed(esp_random());
 #endif
 
@@ -35,18 +34,10 @@ void sensorsInit()
   {
     sht45.setPrecision(SHT4X_HIGH_PRECISION);
     sht45.setHeater(SHT4X_NO_HEATER);
-    Serial.println("[INIT] SHT45 detected");
-  }
-  else
-  {
-    Serial.println("[INIT] SHT45 NOT found");
   }
 
   sgpPresent = sgp40.begin(&Wire);
-  Serial.println(sgpPresent ? "[INIT] SGP40 detected" : "[INIT] SGP40 NOT found");
-
   mprlsPresent = mprls.begin(MPRLS_DEFAULT_ADDR, &Wire);
-  Serial.println(mprlsPresent ? "[INIT] MPRLS detected" : "[INIT] MPRLS NOT found");
 
   SPI.begin(PIN_SPI_SCK, PIN_SPI_MISO, PIN_SPI_MOSI);
 
@@ -56,15 +47,9 @@ void sensorsInit()
     maxTC.setThermocoupleType(TC_TYPE);
     // Continuous mode: a one-shot read blocks ~200 ms.
     maxTC.setConversionMode(MAX31856_CONTINUOUS);
-    Serial.println("[INIT] MAX31856 detected");
-  }
-  else
-  {
-    Serial.println("[INIT] MAX31856 NOT found");
   }
 
   rtdPresent = maxRTD.begin(RTD_WIRES);
-  Serial.println(rtdPresent ? "[INIT] MAX31865 detected" : "[INIT] MAX31865 NOT found");
 }
 
 #if SIMULATE_SENSORS
