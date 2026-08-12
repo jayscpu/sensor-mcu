@@ -95,15 +95,6 @@ void setup()
 
 void loop()
 {
-  // Repeats because the S3's native USB re-enumerates on every reset; a
-  // one-shot boot print would be gone before a monitor can reattach.
-  static unsigned long lastMs = 0;
-  if (millis() - lastMs >= 1000)
-  {
-    lastMs = millis();
-    Serial.println("[INIT] sensormcu boot (env=esp32s3)");
-  }
-
   static bool wifiWasUp = false;
   bool wifiUp = (WiFi.status() == WL_CONNECTED);
   if (wifiUp != wifiWasUp)

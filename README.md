@@ -37,9 +37,8 @@ pio device monitor         # serial at 115200 baud
 
 - `DATA,tc_c,rtd_c,ambient_c,ambient_rh,voc_index,pressure_hpa` at 1 Hz.
   An empty field means that sensor is unavailable.
-- `[INIT]` / `[WIFI]` lines: everything else. The boot banner repeats at 1 Hz
-  on purpose (native USB re-enumerates on reset, so a one-shot print would be
-  missed).
+- `[INIT]` / `[WIFI]` lines: sensor probe results at boot and WiFi
+  connect/disconnect events.
 
 ```sh
 pio device monitor | grep '^DATA' > run.csv
