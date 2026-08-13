@@ -5,16 +5,12 @@
 #include "sensors.h"
 
 static WiFiUDP udp;
-
-// FluidTouch sensor-link contract: {"seq":N,"ms":M,"d":{...}}. Channels whose
-// sensor is unhealthy are omitted from "d"; the "status" channel (bitmask,
-// see config.h) says which sensors are healthy and is sent in every packet.
 static char jsonBuf[256];
 static size_t jsonLen;
 static bool jsonFirst;
 
 // Asymmetric debounce: one bad read marks the sensor unhealthy immediately,
-// but it must read good for 3 consecutive ticks to count as healthy again.
+// but it must read good for 3 consecutive ticks to count as healthy again
 struct Health
 {
   bool healthy = false;
@@ -55,9 +51,6 @@ static void tick()
 {
   SensorReadings readings;
   sensorsRead(readings);
-
-  // seq counts samples, not sends, so a WiFi outage registers as lost
-  // packets on the screen instead of looking like a quiet sensor.
   static uint32_t seq = 0;
   seq++;
 
@@ -93,8 +86,6 @@ static void tick()
 void setup()
 {
   sensorsInit();
-
-  // Non-blocking join: ticks run regardless, UDP sends skip until connected.
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASS);

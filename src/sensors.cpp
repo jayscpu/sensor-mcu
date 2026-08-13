@@ -45,7 +45,7 @@ void sensorsInit()
   if (tcPresent)
   {
     maxTC.setThermocoupleType(TC_TYPE);
-    // Continuous mode: a one-shot read blocks ~200 ms.
+    // Continuous mode: a one-shot read blocks ~200 ms
     maxTC.setConversionMode(MAX31856_CONTINUOUS);
   }
 
@@ -54,7 +54,7 @@ void sensorsInit()
 
 #if SIMULATE_SENSORS
 
-// Random walk so fake channels drift like real signals.
+// Random walk so fake channels drift like real signals
 static float walk(float v, float lo, float hi, float step)
 {
   v += step * (random(-100, 101) / 100.0f);
@@ -76,7 +76,7 @@ void sensorsRead(SensorReadings &r)
   r.pressureHPa = press = walk(press, 950, 1080, 1.0f);
   r.mprlsOk = true;
 
-  // Occasional fake SHT45 dropout exercises the receiver's missing-channel path.
+  // Occasional fake SHT45 dropouts
   r.shtOk = (random(0, 15) != 0);
   if (!r.shtOk)
   {
@@ -89,7 +89,7 @@ void sensorsRead(SensorReadings &r)
 
 void sensorsRead(SensorReadings &r)
 {
-  // SHT45 before SGP40: the VOC compensation uses this tick's result.
+  // SHT45 before SGP40: the VOC compensation needs it
   if (shtPresent)
   {
     sensors_event_t humidity, temp;
@@ -151,7 +151,7 @@ void sensorsRead(SensorReadings &r)
     }
   }
 
-  // The MAX31865 fault flag is sticky; clear it after reading to re-arm.
+  // Note: the MAX31865 fault flag is sticky
   if (rtdPresent)
   {
     float t = maxRTD.temperature(RTD_RNOMINAL, RTD_RREF);
