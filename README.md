@@ -1,4 +1,4 @@
-# sensor-mcu: sensor logger for a spray pyrolysis rig
+# sensor-mcu: sensors reader and logger
 
 Standalone sensors **ESP32-S3** (DevKitC-1). Once a second it reads the
 process sensors and broadcasts them as one JSON UDP packet to the CrowPanel
